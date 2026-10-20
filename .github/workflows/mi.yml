@@ -1,1 +1,19 @@
-
+name: Sync upstream workflow
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * *'
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync upstream workflows
+        uses: repo-sync/pull-request@v2
+        with:
+          source_repository: nullmoth/nvidia-macos-driver
+          source_branch: main
+          destination_branch: main
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          pull_request_title: "chore: sync upstream workflow"
+          pull_request_body: "auto sync from nullmoth/nvidia‑macos‑driver"
