@@ -1,19 +1,38 @@
-name: Sync upstream workflow
+name: Sync Upstream Repo
+
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *'
+    # 每天 UTC 00:00 (北京时间 08:00) 自动同步。可根据需要调整。
+    - cron: '0 0 * * *'
+  # 允许在 Actions 页面手动触发，便于立即测试或排查问题
+  workflow_dispatch:
+
+permissions:
+  contents: write # 必须赋予写权限，才能将拉取的上游代码推送到你的仓库
+
 jobs:
   sync:
+    # 仅当当前仓库是 fork 时才运行（可选，但推荐）
+    if: github.event.repository.fork == true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Sync upstream workflows
-        uses: repo-sync/pull-request@v2
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+
+      - name: Sync upstream changes
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.3
         with:
-          source_repository: nullmoth/nvidia-macos-driver
-          source_branch: main
-          destination_branch: main
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          pull_request_title: "chore: sync upstream workflow"
-          pull_request_body: "auto sync from nullmoth/nvidia‑macos‑driver"
+          # 指定上游仓库。注意这里是用斜杠分隔的 owner/repo 格式，不是完整 URL。
+          upstream_repository: nullmoth/nvidia-macos-driver
+          # 指定上游仓库的分支
+          upstream_branch: main
+          # 指定你希望同步到的本地（你的仓库）分支
+          target_branch: main
+          # 使用自动生成的 GITHUB_TOKEN 即可，无需手动配置 PAT
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout notice on failure
+        if: failure()
+        run: |
+          echo "::error::同步失败。可能原因：上游 workflow 文件发生变更导致 GitHub 暂停了自动同步。"
+          echo "::error::请前往你仓库的 GitHub 页面，手动点击 'Sync fork' 一次，然后再试。"
