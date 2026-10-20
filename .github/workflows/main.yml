@@ -2,37 +2,34 @@ name: Sync Upstream Repo
 
 on:
   schedule:
-    # 每天 UTC 00:00 (北京时间 08:00) 自动同步。可根据需要调整。
+    # 每天 UTC 00:00（北京时间 08:00）自动同步
     - cron: '0 0 * * *'
-  # 允许在 Actions 页面手动触发，便于立即测试或排查问题
+  # 必须保留：这是 Actions 页面出现 “Run workflow” 按钮的前提
   workflow_dispatch:
 
 permissions:
-  contents: write # 必须赋予写权限，才能将拉取的上游代码推送到你的仓库
+  contents: write
 
 jobs:
   sync:
-    # 仅当当前仓库是 fork 时才运行（可选，但推荐）
-    if: github.event.repository.fork == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout target repo
         uses: actions/checkout@v4
 
       - name: Sync upstream changes
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.3
+        id: sync
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
         with:
-          # 指定上游仓库。注意这里是用斜杠分隔的 owner/repo 格式，不是完整 URL。
-          upstream_repository: nullmoth/nvidia-macos-driver
-          # 指定上游仓库的分支
-          upstream_branch: main
-          # 指定你希望同步到的本地（你的仓库）分支
-          target_branch: main
-          # 使用自动生成的 GITHUB_TOKEN 即可，无需手动配置 PAT
+          upstream_sync_repo: nullmoth/nvidia-macos-driver
+          upstream_sync_branch: main
+          target_sync_branch: main
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          test_mode: false
 
-      - name: Checkout notice on failure
+      - name: Sync failure notice
         if: failure()
         run: |
-          echo "::error::同步失败。可能原因：上游 workflow 文件发生变更导致 GitHub 暂停了自动同步。"
-          echo "::error::请前往你仓库的 GitHub 页面，手动点击 'Sync fork' 一次，然后再试。"
+          echo "::error::同步失败。最常见的原因：上游仓库修改了 .github/workflows/ 下的文件，导致 GitHub 暂停了本定时同步。"
+          echo "::error::请前往你仓库主页，手动点击一次 'Sync fork'，然后再运行本工作流。"
+          exit 1
